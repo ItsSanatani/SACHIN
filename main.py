@@ -4,6 +4,7 @@ from pyrogram import Client, filters
 from pyrogram.errors import FloodWait
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, ForceReply
 from pymongo import MongoClient
+from motor.motor_asyncio import AsyncIOMotorClient
 from config import BOT_TOKEN, API_ID, API_HASH, SESSION_STRINGS, MONGO_DB_URI  # Importing from config.py
 
 # Logging setup
