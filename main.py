@@ -16,8 +16,34 @@ mongo_client = MongoClient(MONGO_DB_URI)
 db = mongo_client["mass_report_db"]
 user_collection = db["user_data"]  # MongoDB collection for user data
 
-# Bot client
-bot = Client("mass_report_bot", bot_token=BOT_TOKEN, api_id=API_ID, api_hash=API_HASH)
+# Custom MongoDB session storage class
+class MongoDBStorage:
+    def __init__(self, db_uri, db_name, collection_name):
+        self.client = MongoClient(db_uri)
+        self.db = self.client[db_name]
+        self.collection = self.db[collection_name]
+    
+    async def load(self, session_name):
+        session_data = self.collection.find_one({"session_name": session_name})
+        if session_data:
+            return session_data["session_string"]
+        return None
+    
+    async def save(self, session_name, session_string):
+        existing_session = self.collection.find_one({"session_name": session_name})
+        if existing_session:
+            self.collection.update_one({"session_name": session_name}, {"$set": {"session_string": session_string}})
+        else:
+            self.collection.insert_one({"session_name": session_name, "session_string": session_string})
+    
+    async def delete(self, session_name):
+        self.collection.delete_one({"session_name": session_name})
+
+# MongoDB storage object
+mongo_storage = MongoDBStorage(MONGO_DB_URI, "mass_report_db", "sessions")
+
+# Bot client with MongoDB storage
+bot = Client("mass_report_bot", bot_token=BOT_TOKEN, api_id=API_ID, api_hash=API_HASH, storage=mongo_storage)
 
 # Check and initialize user clients
 user_clients = []
