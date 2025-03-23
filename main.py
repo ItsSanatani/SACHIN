@@ -120,7 +120,7 @@ async def send_reports(client, message, user_info):
         for user_client in user_clients:
             try:
                 async with user_client:
-                    await user_client.report_chat(link, reason)
+                    await user_client.report(link, reason)  # Corrected line
                     success_count += 1
                     await message.reply(f"Report sent: {success_count}")
             except FloodWait as e:
@@ -132,7 +132,7 @@ async def send_reports(client, message, user_info):
 
     await message.reply(f"Reporting completed.\nTotal successful reports: {success_count}\nTotal failed reports: {failure_count}")
     user_info["state"] = "completed"
-
+    
 # Running the bot and user clients
 if __name__ == "__main__":
     loop = asyncio.get_event_loop()
