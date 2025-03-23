@@ -1,115 +1,135 @@
-from pyrogram import Client, filters
-from pyrogram.types import ChatReportReason
 import asyncio
-import config
+from pyrogram import Client, filters
+from pyrogram.errors import FloodWait
+from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+import logging
 
-# Telegram Supported Reasons Map
-REASONS = {
-    "1": ChatReportReason.SPAM,
-    "2": ChatReportReason.FAKE,
-    "3": ChatReportReason.VIOLENCE,
-    "4": ChatReportReason.PORNOGRAPHY,
-    "5": ChatReportReason.CHILD_ABUSE,
-    "6": ChatReportReason.COPYRIGHT,
-    "7": ChatReportReason.OTHER,
-    "8": ChatReportReason.PERSONAL_DETAILS
-}
+# Logging setup
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-# Initialize Bot Clients for each session string
-clients = [
-    Client(
-        name=f"client_{i}",
-        api_id=config.API_ID,
-        api_hash=config.API_HASH,
-        session_string=session_string
-    )
-    for i, session_string in enumerate(config.SESSION_STRINGS)
+# Bot configuration
+BOT_TOKEN = "YOUR_BOT_TOKEN"
+API_ID = YOUR_API_ID
+API_HASH = "YOUR_API_HASH"
+
+# List of session strings
+SESSION_STRINGS = [
+    "SESSION_STRING_1",
+    "SESSION_STRING_2",
+    # Add more session strings as needed
 ]
 
-# Initialize Control Bot
-control_bot = Client("control_bot", api_id=config.API_ID, api_hash=config.API_HASH, bot_token="7656369802:AAGdlo88cewouuiviq-eHoRHdxj_Ktji3To")
+# List of report reasons
+REPORT_REASONS = [
+    ("Spam", "spam"),
+    ("Fake", "fake"),
+    ("Child Abuse", "child_abuse"),
+    ("Violence", "violence"),
+    ("Pornography", "pornography"),
+    ("Copyright", "copyright"),
+    ("Other", "other")
+]
 
-# Start Command
-@control_bot.on_message(filters.command("start"))
-async def start(bot, message):
-    await message.reply("Hello! I'm Mass Report Bot. Use /report to start reporting.")
+# Bot client
+bot = Client("mass_report_bot", bot_token=BOT_TOKEN, api_id=API_ID, api_hash=API_HASH)
 
-# Report Command
-@control_bot.on_message(filters.command("report"))
-async def report(bot, message):
-    chat_id = message.chat.id
+# Userbot clients
+user_clients = [Client(f"session_{i}", api_id=API_ID, api_hash=API_HASH, session_string=string) for i, string in enumerate(SESSION_STRINGS)]
 
-    # Ask for Group/Channel Link
-    await bot.send_message(chat_id, "Please send the Group/Channel Username or Invite Link:")
-    group_link = (await bot.listen(chat_id)).text
+# Dictionary to store user data
+user_data = {}
 
-    # Ask for Report Type
-    await bot.send_message(chat_id, "What do you want to report?\n1. Group/Channel\n2. Specific Message\nEnter 1 or 2:")
-    target_type = (await bot.listen(chat_id)).text
+# Start command handler
+@bot.on_message(filters.command("start") & filters.private)
+async def start(client, message):
+    await message.reply(
+        "Hello! I'm the Mass Report Bot. Please send the link of the group or channel you want to report."
+    )
 
-    # If Specific Message, ask for Message Link
-    if target_type == "2":
-        await bot.send_message(chat_id, "Please send the Message Link (https://t.me/xxxx/12345):")
-        message_link = (await bot.listen(chat_id)).text
-
-    # Ask for Report Reason
-    reason_menu = "\nSelect Report Reason:\n"
-    for key, value in REASONS.items():
-        reason_menu += f"{key}. {value}\n"
-    await bot.send_message(chat_id, reason_menu)
-    choice = (await bot.listen(chat_id)).text
-    reason = REASONS.get(choice, ChatReportReason.SPAM)
-
-    # Ask for Number of Reports
-    await bot.send_message(chat_id, "How many reports do you want to send?")
-    report_count = int((await bot.listen(chat_id)).text)
-
-    # Confirm Details
-    confirm_msg = f"Please confirm the details:\n\nGroup/Channel: {group_link}\n"
-    if target_type == "2":
-        confirm_msg += f"Message: {message_link}\n"
-    confirm_msg += f"Reason: {reason}\nNumber of Reports: {report_count}\n\nType 'yes' to confirm or 'no' to cancel."
-    await bot.send_message(chat_id, confirm_msg)
-    confirmation = (await bot.listen(chat_id)).text.lower()
-
-    if confirmation != "yes":
-        await bot.send_message(chat_id, "Operation cancelled.")
+# Link handler
+@bot.on_message(filters.private & filters.text & ~filters.command("start"))
+async def handle_link(client, message):
+    text = message.text.strip()
+    if not text:
+        await message.reply("Please send a valid link.")
         return
 
-    # Reporting Function
-    async def report_action(client):
-        try:
-            async with client:
-                chat = await client.get_chat(group_link)
-                
-                for i in range(report_count):
-                    if target_type == "1":
-                        # Report full group/channel
-                        await client.report_chat(
-                            chat_id=chat.id,
-                            reason=reason,
-                            text="Mass Report Bot"
-                        )
-                    else:
-                        # Report specific message
-                        msg_id = int(message_link.split("/")[-1])
-                        await client.report_chat_message(
-                            chat_id=chat.id,
-                            message_ids=[msg_id],
-                            reason=reason,
-                            text="Mass Report Bot"
-                        )
-                    
-                    await bot.send_message(chat_id, f"Report successfully sent {i + 1} 📤")
-                    await asyncio.sleep(1)  # थोड़ा विराम ताकि rate limit से बचा जा सके
-                    
-        except Exception as e:
-            await bot.send_message(chat_id, f"Error: {e}")
+    # Store user data
+    user_data[message.chat.id] = {"link": text}
 
-    # Start Reporting
-    tasks = [report_action(client) for client in clients]
-    await asyncio.gather(*tasks)
-    await bot.send_message(chat_id, "Reporting completed.")
+    # Ask user for report reason
+    buttons = [
+        [InlineKeyboardButton(reason[0], callback_data=f"reason_{reason[1]}")] for reason in REPORT_REASONS
+    ]
+    reply_markup = InlineKeyboardMarkup(buttons)
+    await message.reply("Please select the reason for the report:", reply_markup=reply_markup)
 
-# Run Control Bot
-control_bot.run()
+# Report reason handler
+@bot.on_callback_query(filters.regex(r"^reason_"))
+async def handle_reason(client, callback_query):
+    reason_code = callback_query.data.split("_")[1]
+    user_info = user_data.get(callback_query.message.chat.id, {})
+    if not user_info:
+        await callback_query.message.reply("Something went wrong. Please start over with /start.")
+        return
+
+    user_info["reason"] = reason_code
+
+    # Ask user for the number of reports
+    await callback_query.message.reply("Please enter the number of reports to send:")
+
+# Report count handler
+@bot.on_message(filters.private & filters.text & filters.regex(r"^\d+$"))
+async def handle_report_count(client, message):
+    user_info = user_data.get(message.chat.id, {})
+    if not user_info or "reason" not in user_info:
+        await message.reply("Something went wrong. Please start over with /start.")
+        return
+
+    report_count = int(message.text.strip())
+    if report_count <= 0:
+        await message.reply("Please enter a valid number.")
+        return
+
+    user_info["count"] = report_count
+
+    # Start sending reports
+    await message.reply(f"Starting to send reports...\nLink: {user_info['link']}\nReason: {user_info['reason']}\nCount: {user_info['count']}")
+
+    # Send reports
+    await send_reports(client, message, user_info)
+
+# Function to send reports
+async def send_reports(client, message, user_info):
+    link = user_info["link"]
+    reason = user_info["reason"]
+    count = user_info["count"]
+
+    # Initialize success and failure counts
+    success_count = 0
+    failure_count = 0
+
+    for i in range(count):
+        for user_client in user_clients:
+            try:
+                async with user_client:
+                    await user_client.report_chat(link, reason)
+                    success_count += 1
+                    await message.reply(f"Report sent: {success_count}")
+            except FloodWait as e:
+                logger.warning(f"Flood wait: {e.x} seconds")
+                await asyncio.sleep(e.x)
+            except Exception as e:
+                logger.error(f"Failed to send report: {e}")
+                failure_count += 1
+
+    await message.reply(f"Reporting completed.\nTotal successful reports: {success_count}\nTotal failed reports: {failure_count}")
+
+# Run the bot
+if __name__ == "__main__":
+    for user_client in user_clients:
+        user_client.start()
+    bot.run()
+    for user_client in user_clients:
+        user_client.stop()
