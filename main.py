@@ -18,28 +18,26 @@ user_collection = db["user_data"]  # MongoDB collection for user data
 # Bot client
 bot = Client("mass_report_bot", bot_token=BOT_TOKEN, api_id=API_ID, api_hash=API_HASH)
 
-# Userbot clients
+# Check and initialize user clients
 user_clients = []
 for i, string in enumerate(SESSION_STRINGS):
-    user_client = Client(f"session_{i}", api_id=API_ID, api_hash=API_HASH, session_string=string)
-    user_clients.append(user_client)
+    if string:
+        user_client = Client(f"session_{i}", api_id=API_ID, api_hash=API_HASH, session_string=string)
+        user_clients.append(user_client)
+    else:
+        logger.warning(f"Session string at index {i} is None or empty. Skipping client.")
 
 # Function to start user clients only if they are not already connected
 async def start_user_clients():
     for i, user_client in enumerate(user_clients):
-        session_string = SESSION_STRINGS[i] if i < len(SESSION_STRINGS) else None
-        
-        if session_string is None:
-            logger.error(f"Session string at index {i} is None. Skipping client.")
-            continue
-        
         try:
             if not await user_client.is_connected():
+                logger.info(f"Starting user client {user_client.session_name}...")
                 await user_client.start()
             else:
-                logger.info(f"User client {user_client} is already connected.")
+                logger.info(f"User client {user_client.session_name} is already connected.")
         except Exception as e:
-            logger.error(f"Failed to start client {user_client}: {e}")
+            logger.error(f"Failed to start client {user_client.session_name}: {e}")
 
 # Start command handler
 @bot.on_message(filters.command("start") & filters.private)
