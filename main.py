@@ -32,12 +32,12 @@ async def start_user_clients():
     for i, user_client in enumerate(user_clients):
         try:
             if not await user_client.is_connected():
-                logger.info(f"Starting user client {user_client.session_name}...")
+                logger.info(f"Starting user client {i}...")
                 await user_client.start()
             else:
-                logger.info(f"User client {user_client.session_name} is already connected.")
+                logger.info(f"User client {i} is already connected.")
         except Exception as e:
-            logger.error(f"Failed to start client {user_client.session_name}: {e}")
+            logger.error(f"Failed to start client {i}: {e}")
 
 # Start command handler
 @bot.on_message(filters.command("start") & filters.private)
@@ -136,6 +136,6 @@ if __name__ == "__main__":
     bot.run()
 
     # Stop user clients after bot stops
-    for user_client in user_clients:
+    for i, user_client in enumerate(user_clients):
         if user_client.is_connected():
             user_client.stop()
