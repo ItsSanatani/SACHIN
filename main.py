@@ -42,8 +42,7 @@ class MongoDBStorage:
 # MongoDB storage object
 mongo_storage = MongoDBStorage(MONGO_DB_URI, "mass_report_db", "sessions")
 
-# Bot client with MongoDB storage
-bot = Client("mass_report_bot", bot_token=BOT_TOKEN, api_id=API_ID, api_hash=API_HASH, storage=mongo_storage)
+bot = Client("mass_report_bot", bot_token=BOT_TOKEN, api_id=API_ID, api_hash=API_HASH)
 
 # Check and initialize user clients
 user_clients = []
