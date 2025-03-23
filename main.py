@@ -3,14 +3,11 @@ from pyrogram import Client, filters
 from pyrogram.errors import FloodWait
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, ForceReply
 import logging
-from pyrogram.raw.functions.account import ReportPeer
-from pyrogram.raw.types import InputPeerChannel, InputReportReasonSpam, InputReportReasonFake, InputReportReasonOther
 
 # Logging setup
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Bot configuration
 BOT_TOKEN = "7656369802:AAGdlo88cewouuiviq-eHoRHdxj_Ktji3To"
 API_ID = 28795512
 API_HASH = "c17e4eb6d994c9892b8a8b6bfea4042a"
@@ -37,6 +34,12 @@ bot = Client("mass_report_bot", bot_token=BOT_TOKEN, api_id=API_ID, api_hash=API
 
 # Userbot clients
 user_clients = [Client(f"session_{i}", api_id=API_ID, api_hash=API_HASH, session_string=string) for i, string in enumerate(SESSION_STRINGS)]
+
+# Function to start user clients only if they are not already connected
+async def start_user_clients():
+    for user_client in user_clients:
+        if not user_client.is_connected():
+            await user_client.start()
 
 # Dictionary to store user data
 user_data = {}
@@ -109,36 +112,7 @@ async def send_reports(client, message, user_info):
         for user_client in user_clients:
             try:
                 async with user_client:
-                    # Resolve the peer
-                    peer = await user_client.resolve_peer(link)
-                    
-                    # Peer का प्रकार पहचानें और InputPeer बनाएं
-                    if hasattr(peer, 'channel_id'):
-                        input_peer = InputPeerChannel(peer.channel_id, peer.access_hash)
-                    else:
-                        # अन्य Peer प्रकार को हैंडल करें अगर ज़रूरी हो
-                        continue
-                    
-                    # Reason को उपयुक्त InputReportReason में बदलें
-                    if reason == "spam":
-                        report_reason = InputReportReasonSpam()
-                    elif reason == "fake":
-                        report_reason = InputReportReasonFake()
-                    elif reason == "child_abuse":
-                        report_reason = InputReportReasonOther()  # अन्य कारण के लिए बदलें
-                    elif reason == "violence":
-                        report_reason = InputReportReasonOther()  # अन्य कारण के लिए बदलें
-                    elif reason == "pornography":
-                        report_reason = InputReportReasonOther()  # अन्य कारण के लिए बदलें
-                    elif reason == "copyright":
-                        report_reason = InputReportReasonOther()  # अन्य कारण के लिए बदलें
-                    else:
-                        report_reason = InputReportReasonOther()
-
-                    # रिपोर्ट भेजें
-                    report = ReportPeer(peer=input_peer, reason=report_reason, message="Reported via bot")
-                    await user_client.send(report)
-                    
+                    await user_client.report_chat(link, reason)
                     success_count += 1
                     await message.reply(f"Report sent: {success_count}")
             except FloodWait as e:
@@ -151,10 +125,16 @@ async def send_reports(client, message, user_info):
     await message.reply(f"Reporting completed.\nTotal successful reports: {success_count}\nTotal failed reports: {failure_count}")
     user_info["state"] = "completed"
 
-# Run the bot
+# Running the bot and user clients
 if __name__ == "__main__":
-    for user_client in user_clients:
-        user_client.start()
+    loop = asyncio.get_event_loop()
+
+    # Start user clients only if not already running
+    loop.run_until_complete(start_user_clients())
+
     bot.run()
+
+    # Stop user clients after bot stops
     for user_client in user_clients:
-        user_client.stop()
+        if user_client.is_connected():
+            user_client.stop()
