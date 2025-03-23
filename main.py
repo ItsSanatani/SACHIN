@@ -17,7 +17,6 @@ SESSION_STRINGS = [
     "BQFgymkAVTMxSUj6LsU_3n5Drp2A6Qxrf_1CdOpNK2SqvQHYFehSmu1rzZr6ZeWZVffbquBPV-orsQKh01ydXX4yNfPybJP8b1PVZnNf8NEOb-vxw0ATay79muzQCUH_EZj8m0LTakEfphuq7nXK2cU6ravdGwDTqQtcez8Pqnz0II8W8PRlZwkUHzXe2VFKuLC3gLamhRyV6AT6sPANyU9Pb2mx9VC_s0RiPpbFQy_1KNmqgHWt5ZNxK267LcreOVTmF6lW1K9iSZfPE78YFIR9scwq01Pf9Cv8Ali8fi5TVj8ago2M0m9WjibLCZls15uYmYR5YTNZoM1aZQrWfTzuRfa_7AAAAAG3U1eFAA",
     "BQFgymkAezjS5jiJSx-AZ07UHv-1BVM9I3Y3d45o3RVg2-4jICfCZfGcvI-81BmxryzDhrb936ytuX0VElw3OdHbuNE0hIHkUHuIFjIF-8Gscilk1whOjz7d28rkS-2Hg-Hrd6GS__HKfwHVrey8JVpC4iKEtU1iXMxfmBnlVtqqVZvpPL9NNX9hLOhUtdOiC9bzZ3qv8mlzP7SMZ3UjJuPz1MATHgUuyKv4QzCplmPgWpFGlfFUwnkPsKffeu2S7MaDhteRopEB1eQtEahHb_hPLw97vm0_GR02zLHGZdkeXKtltIE7J7q5h2NpLyT7OBO94DFuHq3KgrA6oLM540q22vxYDQAAAAGuvoCcAA"
 ]
-
 # List of report reasons
 REPORT_REASONS = [
     ("Spam", "spam"),
@@ -38,7 +37,7 @@ user_clients = [Client(f"session_{i}", api_id=API_ID, api_hash=API_HASH, session
 # Function to start user clients only if they are not already connected
 async def start_user_clients():
     for user_client in user_clients:
-        if not user_client.is_connected():
+        if not await user_client.is_connected():
             await user_client.start()
 
 # Dictionary to store user data
