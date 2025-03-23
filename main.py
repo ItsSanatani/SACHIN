@@ -20,7 +20,13 @@ for i, string in enumerate(SESSION_STRINGS):
 
 # Function to start user clients only if they are not already connected
 async def start_user_clients():
-    for user_client in user_clients:
+    for i, user_client in enumerate(user_clients):
+        session_string = SESSION_STRINGS[i] if i < len(SESSION_STRINGS) else None
+        
+        if session_string is None:
+            logger.error(f"Session string at index {i} is None. Skipping client.")
+            continue
+        
         try:
             if not await user_client.is_connected():
                 await user_client.start()
@@ -28,7 +34,7 @@ async def start_user_clients():
                 logger.info(f"User client {user_client} is already connected.")
         except Exception as e:
             logger.error(f"Failed to start client {user_client}: {e}")
-
+            
 # Dictionary to store user data
 user_data = {}
 
